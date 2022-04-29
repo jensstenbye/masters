@@ -155,93 +155,8 @@ class DeepCountAutoencoder(nn.Module):
 
 #SequenceCountEncoderLinearDecoder generates NB means by matrix product of latent variables of each cell, using an encoder
 #on count matrix, with the latent state of each gene using a convolutional network
+
 class SequenceCountEncoderLinearDecoder(nn.Module):
-	def __init__(self, 
-				input_size,
-				seq_len=600,
-				encoder_sizes=[64, 32],
-				dropout_rates=0.0,
-				batchnorm=True,
-				lambd=0.0, 
-				basset_layers=1,
-				basset_learn=[],
-				final_conv_size=4,
-				**kwargs):
-
-		super(SequenceCountEncoderLinearDecoder, self).__init__()   
-		self.name='SequenceCountEncoderLinearDecoder'
-		#Dictionary with values for the 3 first convolutional layers of basset  
-		self.basset_arch={'in_channels':[4,300,200],'out_channels':[300,200,200],
-						'conv_height':[19,11,7], 'conv_width':[1,1,1], 
-						'maxp_width':[1,1,1],'maxp_height':[3,4,4]}   
-		self.basset_layers = basset_layers  
-		#We model dispersion as an independent variable   
-		self.seq_len = seq_len                           
-		self.log_dispersion     = torch.nn.Parameter(torch.clamp(torch.randn(input_size,    #Define a dispersion parameter to fit
-												requires_grad=True, device=get_device()), min=1e-4, max=1e4))
-
-
-		###The count based encoder###
-		layers=[LinearBlock(input_size,encoder_sizes[0], dropout_rates)]
-		for layer in range(1,len(encoder_sizes)):
-			layers += [LinearBlock(encoder_sizes[layer-1],encoder_sizes[layer], dropout_rates)]
-		self.count_net = nn.Sequential(*layers)
-
-		###The Sequence based model###
-		###First load relevant basset layers###
-		layers=[]
-		for layer in range(0, basset_layers):
-			freeze=False
-			if (layer+1) not in basset_learn:
-				freeze = True
-
-			layers += [ConvBlock(self.basset_arch['in_channels'][layer], self.basset_arch['out_channels'][layer],
-								self.basset_arch['conv_height'][layer], self.basset_arch['conv_width'][layer])]
-			layers[-1].load_basset_weights(layer+1, freeze)
-
-			layers += [MaxPoolBlock(self.basset_arch['maxp_height'][layer], self.basset_arch['maxp_width'][layer])]
-
-		#Create final seq-conv-layer
-		'''Size determination of this, output of basset 194,46,10 depending on layer'''
-		layers += [ConvBlock(self.basset_arch['in_channels'][basset_layers-1], encoder_sizes[-1],
-								final_conv_size, 1)]
-		#Run a final maxpool across the whole output to reduce each filter to a single value
-		self.basset_out_len = self._calc_basset_out()
-		seq_out_len = int(self._calc_conv_out(self.basset_out_len, final_conv_size,1))
-		layers += [MaxPoolBlock(seq_out_len, 1)]
-
-		self.seq_net = nn.Sequential(*layers)
-		
-
-	def forward(self, x, tss):
-		#Latent gene weights from sequential module
-		#Latent cell weights from count module
-		w = torch.squeeze(self.seq_net(tss))
-		z = self.count_net(x)
-		#Transpose so w fits with z=(cells,k), w=(k, genes) -> z*w=(cells, genes)
-		w = torch.transpose(w, 0, 1)   
-		
-		#Mean predicted directly log(mean) goes out of bounds when exponentiated after matrix product
-		mean = torch.mm(z,w)
-		dispersion = torch.exp(self.log_dispersion)
-
-		return dispersion, mean
-	
-	def _calc_basset_out(self):
-		#Gives len of output after basset runthrough
-		seq_len = self.seq_len
-		conv_height = self.basset_arch['conv_height'][0:(self.basset_layers)]
-		maxp_height = self.basset_arch['maxp_height'][0:(self.basset_layers)]
-		for conv, maxp in zip(conv_height, maxp_height):
-			seq_len = self._calc_conv_out(seq_len, conv, 1)
-			seq_len = self._calc_conv_out(seq_len, maxp, maxp)
-		return seq_len
-	
-	#Function for calculating outputsize of convolutional layers
-	def _calc_conv_out(self, input_width, conv_height, stride):
-		return np.floor((input_width-conv_height)/stride)+1
-
-class SequenceCountEncoderLinearDecoderFC(nn.Module):
 	def __init__(self, 
 				input_size,
 				seq_len=600,
@@ -298,9 +213,6 @@ class SequenceCountEncoderLinearDecoderFC(nn.Module):
 
 		self.seq_net = nn.Sequential(*layers)
 
-		###TEST SPACE###
-		#Apply linear layer to each 
-		#self.log_mean = nn.Linear(980, 980)
 
 	def forward(self, x, tss):
 		#Latent gene weights from sequential module
@@ -311,12 +223,6 @@ class SequenceCountEncoderLinearDecoderFC(nn.Module):
 		z = self.count_net(x)
 		#Transpose so w fits with z=(cells,k), w=(k, genes) -> z*w=(cells, genes)
 		w = torch.transpose(w, 0, 1)  
-
-		##TEST SPACE
-		#latent_full = torch.mm(z,w)
-		#log_mean = self.log_mean(latent_full)
-		#mean = torch.exp(log_mean)
-
 		
 		
 		#Mean predicted directly log(mean) goes out of bounds when exponentiated after matrix product
@@ -334,93 +240,6 @@ class SequenceCountEncoderLinearDecoderFC(nn.Module):
 			seq_len = self._calc_conv_out(seq_len, conv, 1)
 			seq_len = self._calc_conv_out(seq_len, maxp, maxp)
 		return seq_len
-	def _calc_conv_out(self, input_width, conv_height, stride):
-		return np.floor((input_width-conv_height)/stride)+1
-
-#############################Test space#############################################
-class SequenceCountEncoderLinearDecoderAVG(nn.Module):
-	def __init__(self, 
-				input_size,
-				seq_len=600,
-				encoder_sizes=[64, 32],
-				dropout_rates=0.0,
-				batchnorm=True,
-				lambd=0.0, 
-				basset_layers=1,
-				basset_learn=[],
-				final_conv_size=4,
-				**kwargs):
-
-		super(SequenceCountEncoderLinearDecoderAVG, self).__init__()   
-		self.name='SequenceCountEncoderLinearDecoder'
-		#Dictionary with values for the 3 first convolutional layers of basset  
-		self.basset_arch={'in_channels':[4,300,200],'out_channels':[300,200,200],
-						'conv_height':[19,11,7], 'conv_width':[1,1,1], 
-						'maxp_width':[1,1,1],'maxp_height':[3,4,4]}   
-		self.basset_layers = basset_layers  
-		#We model dispersion as an independent variable   
-		self.seq_len = seq_len                           
-		self.log_dispersion     = torch.nn.Parameter(torch.clamp(torch.randn(input_size,    #Define a dispersion parameter to fit
-												requires_grad=True, device=get_device()), min=1e-4, max=1e4))
-
-
-		###The count based encoder###
-		layers=[LinearBlock(input_size,encoder_sizes[0], dropout_rates)]
-		for layer in range(1,len(encoder_sizes)):
-			layers += [LinearBlock(encoder_sizes[layer-1],encoder_sizes[layer], dropout_rates)]
-		self.count_net = nn.Sequential(*layers)
-
-		###The Sequence based model###
-		###First load relevant basset layers###
-		layers=[]
-		for layer in range(0, basset_layers):
-			freeze=False
-			if (layer+1) not in basset_learn:
-				freeze = True
-
-			layers += [ConvBlock(self.basset_arch['in_channels'][layer], self.basset_arch['out_channels'][layer],
-								self.basset_arch['conv_height'][layer], self.basset_arch['conv_width'][layer])]
-			layers[-1].load_basset_weights(layer+1, freeze)
-
-			layers += [MaxPoolBlock(self.basset_arch['maxp_height'][layer], self.basset_arch['maxp_width'][layer])]
-
-		#Create final seq-conv-layer
-		'''Size determination of this, output of basset 194,46,10 depending on layer'''
-		layers += [ConvBlock(self.basset_arch['in_channels'][basset_layers-1], encoder_sizes[-1],
-								final_conv_size, 1)]
-		#Run a final maxpool across the whole output to reduce each filter to a single value
-		self.basset_out_len = self._calc_basset_out()
-		seq_out_len = int(self._calc_conv_out(self.basset_out_len, final_conv_size,1))
-		layers += [AvgPoolBlock(seq_out_len, 1)]
-
-		self.seq_net = nn.Sequential(*layers)
-		
-
-	def forward(self, x, tss):
-		#Latent gene weights from sequential module
-		#Latent cell weights from count module
-		w = torch.squeeze(self.seq_net(tss))
-		z = self.count_net(x)
-		#Transpose so w fits with z=(cells,k), w=(k, genes) -> z*w=(cells, genes)
-		w = torch.transpose(w, 0, 1)   
-		
-		#Mean predicted directly log(mean) goes out of bounds when exponentiated after matrix product
-		mean = torch.exp(torch.mm(z,w))
-		dispersion = torch.exp(self.log_dispersion)
-
-		return dispersion, mean
-	
-	def _calc_basset_out(self):
-		#Gives len of output after basset runthrough
-		seq_len = self.seq_len
-		conv_height = self.basset_arch['conv_height'][0:(self.basset_layers)]
-		maxp_height = self.basset_arch['maxp_height'][0:(self.basset_layers)]
-		for conv, maxp in zip(conv_height, maxp_height):
-			seq_len = self._calc_conv_out(seq_len, conv, 1)
-			seq_len = self._calc_conv_out(seq_len, maxp, maxp)
-		return seq_len
-	
-	#Function for calculating outputsize of convolutional layers
 	def _calc_conv_out(self, input_width, conv_height, stride):
 		return np.floor((input_width-conv_height)/stride)+1
 
