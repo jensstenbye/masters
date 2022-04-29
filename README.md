@@ -3,7 +3,7 @@
 This repository contains the code used to create and train the scRNA denoising models described in my masters thesis, and a notebook for preprocessing data used in the project.
 The code is for documentation purposes only and is non-functional as is. A short description of the files is given below
 
-main.py     -> Main script, constructs and trains specified model
+main.py     -> Main script, constructs and trains specified model<br>
 config.ini  -> Config file read by main.py, containing default parameters for model
 
 -training tools/<br>
