@@ -15,7 +15,7 @@ config.ini  -> Config file read by main.py, containing default parameters for mo
 
 -models/<br>
 --sc_models.py      -> Script containing the DCA and SCELD models<br>
---distributions.py  -> Script containing containing the negative binomial distributions and negative log likelihood function of this<br>
+--distributions.py  -> Script containing containing the negative binomial distributions its NLL<br>
 --Sequential_pretrained.pth -> Pretrained basset model, used to lift weights to SCELD
 
 -data_handling/<br>
