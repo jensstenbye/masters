@@ -2,7 +2,7 @@
 from .data_handling import preprocess as pp
 from .data_handling.dataset_classes import CountsDataset, SequenceDataset
 from .utils import general_utils, argparser
-from .models.sc_models import SequenceCountEncoderLinearDecoderFC, DeepCountAutoencoder, SequenceCountEncoderLinearDecoder
+from .models.sc_models import SequenceCountEncoderLinearDecoder, DeepCountAutoencoder
 from .training_tools.training import train
 
 #Commit log
@@ -12,7 +12,7 @@ def train_model_run(args_dict):
 	device = general_utils.get_device()
 	count_data = CountsDataset(args['count_adata_path'])
 
-	if args['model']=='SCELD' or args['model']=='SCELDFC':
+	if args['model']=='SCELD':
 		sequence_data = SequenceDataset(args['tss_fasta_path'])
 		sequence_data.reindex_by_list(count_data.adata.var_names.to_list())
 	elif args['model']=='DCA':
@@ -20,7 +20,6 @@ def train_model_run(args_dict):
 
 	##############################Load model#######################
 	model_dict = {
-	'SCELDFC': SequenceCountEncoderLinearDecoderFC,
     'SCELD': SequenceCountEncoderLinearDecoder,
     'DCA':   DeepCountAutoencoder }
 	nn_model = model_dict[args['model']](input_size=count_data.adata.n_vars, seq_len=600, **args)
