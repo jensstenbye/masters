@@ -6,7 +6,7 @@ import os
 
 parser=configargparse.ArgParser(default_config_files=['/home/jbs/scRNA-seq/scRNA_redone/config.ini'])
 parser.add('-c','--my-config', is_config_file=True, help='config file path')
-parser.add('-m','--model', required=True, choices=['DCA','SCELD', 'SCELDFC'], help='Model choice: DCA or SCELD')
+parser.add('-m','--model', required=True, choices=['DCA','SCELD'], help='Model choice: DCA or SCELD')
 parser.add('--output_path_prefix', required=True, type=str,help='Location of outputfiles with prefix i.e. "./outputdir/outprefix"')
 parser.add('--encoder_sizes',type=int, nargs='+', help="Size of encoder layres, note last encoder layer also determines output channels of sequential layer, default=[64, 32]")
 parser.add('--decoder_sizes',type=int, nargs='+', help="Size of decoder layers")
