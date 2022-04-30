@@ -1,7 +1,7 @@
 ## scRNA denoising code
 
-This repository contains the code used to create and train the scRNA denoising models described in my masters thesis, and a notebook for preprocessing data used in the project.
-The code is for documentation purposes only and is non-functional as is. A short description of the files is given below
+This repository contains the code used to create and train the scRNA denoising models described in my masters thesis, and a notebook for preprocessing data used in the project. The conda environment used for this project can be reconstructed from 'masters_env.txt' with the correct package versions.
+The code is for documentation purposes only and is non-functional as is. A short description of the files is given below.
 
 main.py     -> Main script, constructs and trains specified model<br>
 config.ini  -> Config file read by main.py, containing default parameters for model
